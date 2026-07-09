@@ -1,0 +1,4 @@
+{"timestamp":"2026-07-09T01:20:29Z","action":"guard","status":"allow","feature_directory":"","decision":"allow","reason":"","actor":"codex","checked_action":"speckit.clarify"}
+{"timestamp":"2026-07-09T01:29:53Z","action":"guard","status":"allow","feature_directory":"","decision":"allow","reason":"","actor":"codex","checked_action":"speckit.plan"}
+{"timestamp":"2026-07-09T01:42:10Z","action":"guard","status":"allow","feature_directory":"","decision":"allow","reason":"","actor":"codex","checked_action":"speckit.tasks"}
+{"timestamp":"2026-07-09T01:47:32Z","action":"handoff","status":"ready","feature_directory":"specs/002-multi-task-calendar","decision":"updated","reason":"","actor":"codex","prior_actor":null,"snapshot_id":"20260709T014732829Z-ready"}
