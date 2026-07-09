@@ -77,8 +77,9 @@ export function TaskCard({
               className="button button-secondary"
               type="button"
               onClick={() => onVerify(task.id)}
+              aria-label={`Verify ${task.title}`}
             >
-              Verify {task.title}
+              Verify
             </button>
           ) : null}
           {isEditable ? (
@@ -86,8 +87,9 @@ export function TaskCard({
               className="button button-quiet"
               type="button"
               onClick={() => onEdit(task.id)}
+              aria-label={`Edit ${task.title}`}
             >
-              Edit {task.title}
+              Edit
             </button>
           ) : null}
         </div>

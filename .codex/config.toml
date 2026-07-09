@@ -1,0 +1,9 @@
+# Project-local Codex feature flags for Daily Done.
+#
+# Restart Codex from this folder after changing feature flags so the tool list
+# refreshes. The playwright-interactive skill also requires launching Codex with
+
+
+[features]
+js_repl = true
+multi_agent = true

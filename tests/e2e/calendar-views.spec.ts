@@ -56,13 +56,14 @@ test.describe('calendar planning views', () => {
 
     await page.getByRole('button', { name: 'Month' }).click();
     await expect(page.getByRole('heading', { name: /Month overview/ })).toBeVisible();
-    await expect(page.getByRole('button', { name: /Open .*2 tasks, 1 completed/ })).toBeVisible();
-    await expect(page.getByText('1 done, 1 open')).toBeVisible();
+    const todayMonthDay = page.getByRole('button', { name: /Open .*2 tasks, 1 completed/ });
+    await expect(todayMonthDay).toBeVisible();
+    await expect(todayMonthDay).toContainText('Mixed');
     const nextWeekMonthDay = page.getByRole('button', {
       name: new RegExp(`Open .*${nextWeek}.*1 task, 0 completed`),
     });
     await expect(nextWeekMonthDay).toBeVisible();
-    await expect(nextWeekMonthDay).toContainText('1 planned');
+    await expect(nextWeekMonthDay).toContainText('Planned');
 
     await page.getByRole('button', { name: new RegExp(`Open .*${today}`) }).click();
     await expect(page.getByRole('button', { name: 'Day', exact: true })).toHaveAttribute(

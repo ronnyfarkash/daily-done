@@ -29,17 +29,17 @@ function dayActionLabel(day: MonthDaySummary): string {
   return `Open ${formatDateForDisplay(day.date)} ${day.date}. ${day.statusSummary}`;
 }
 
-function visibleStatusSummary(day: MonthDaySummary): string {
+function visibleStatusSummary(day: MonthDaySummary): string | null {
   if (day.totalCount === 0) {
-    return 'No tasks';
+    return null;
   }
 
   if (day.completedCount > 0 && day.incompleteCount > 0) {
-    return `${day.completedCount} done, ${day.incompleteCount} open`;
+    return 'Mixed';
   }
 
   if (day.completedCount === day.totalCount) {
-    return 'All done';
+    return 'Done';
   }
 
   if (day.missedCount > 0) {
@@ -47,11 +47,11 @@ function visibleStatusSummary(day: MonthDaySummary): string {
   }
 
   if (day.dueTodayCount > 0) {
-    return 'Due today';
+    return 'Due';
   }
 
   if (day.plannedCount > 0) {
-    return `${day.plannedCount} planned`;
+    return 'Planned';
   }
 
   return `${day.incompleteCount} open`;
@@ -89,6 +89,8 @@ export function MonthlyView({ view, onAddTask, onSelectDay }: MonthlyViewProps) 
         ))}
 
         {view.days.map((day) => {
+          const visibleStatus = visibleStatusSummary(day);
+
           return (
             <button
               key={day.date}
@@ -107,9 +109,9 @@ export function MonthlyView({ view, onAddTask, onSelectDay }: MonthlyViewProps) 
                   {day.totalCount} {day.totalCount === 1 ? 'task' : 'tasks'}
                 </span>
               ) : (
-                <span className="month-day-count">No tasks</span>
+                <span className="month-day-count">0</span>
               )}
-              <span className="month-day-status">{visibleStatusSummary(day)}</span>
+              {visibleStatus ? <span className="month-day-status">{visibleStatus}</span> : null}
             </button>
           );
         })}
