@@ -11,7 +11,7 @@ export function AppShell({ children }: AppShellProps) {
         <h1 id="app-title" className="app-title">
           Daily Done
         </h1>
-        <p className="app-subtitle">A quiet checkpoint for the one thing that matters today.</p>
+        <p className="app-subtitle">Plan the day. Verify what you actually did.</p>
       </header>
       <div className="stack">{children}</div>
     </main>
