@@ -1,0 +1,4 @@
+interface:
+  display_name: "Product Designer"
+  short_description: "UX design and review for user-facing apps"
+  default_prompt: "Use $product-designer to design and review this user-facing app before and after implementation."
