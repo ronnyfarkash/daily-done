@@ -24,8 +24,8 @@ textarea {
 }
 
 button,
-textarea,
-input {
+input,
+textarea {
   min-width: 0;
 }
 
@@ -36,18 +36,14 @@ textarea:focus-visible {
   box-shadow: var(--focus-ring);
 }
 
-.focus-target {
-  width: fit-content;
-}
-
-.focus-target:focus-visible {
+.focus-target:focus-visible,
+.task-card:focus-visible {
   outline: none;
-  border-radius: var(--radius-control);
   box-shadow: var(--focus-ring);
 }
 
 .app-shell {
-  width: min(100%, 760px);
+  width: min(100%, 900px);
   margin: 0 auto;
   padding: var(--space-6) var(--space-4) var(--space-8);
 }
@@ -74,6 +70,29 @@ textarea:focus-visible {
   gap: var(--space-4);
 }
 
+.stack-tight {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.control-panel,
+.view-section,
+.form-card,
+.task-card,
+.alert {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.control-panel,
+.view-section {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
 .card {
   display: grid;
   gap: var(--space-4);
@@ -90,90 +109,46 @@ textarea:focus-visible {
   box-shadow: none;
 }
 
+.view-header {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.section-title,
 .card-title,
-.section-title {
+.task-title {
   margin: 0;
-  font-size: var(--font-size-large);
   line-height: 1.25;
+}
+
+.section-title,
+.card-title {
+  font-size: var(--font-size-large);
+}
+
+.task-title {
+  overflow-wrap: anywhere;
+  font-size: 1.05rem;
 }
 
 .eyebrow,
 .helper-text,
 .meta,
-.history-note {
+.summary-line,
+.day-card-meta {
   color: var(--color-text-muted);
   font-size: var(--font-size-small);
 }
 
 .eyebrow,
-.meta {
+.helper-text,
+.meta,
+.summary-line {
   margin: 0;
 }
 
-.task-name {
-  margin: 0;
-  font-size: 1.35rem;
-  line-height: 1.25;
-}
-
-.status {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  gap: var(--space-2);
-  margin: 0;
-  font-weight: 650;
-}
-
-.status-success {
-  color: var(--color-success);
-}
-
-.status-success::before,
-.status-incomplete::before {
-  content: "";
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 999px;
-  border: 2px solid currentColor;
-}
-
-.status-success::before {
-  background: currentColor;
-}
-
-.field {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.field label {
-  font-weight: 650;
-}
-
-.field input,
-.field textarea {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-control);
-  color: var(--color-text);
-  background: var(--color-surface);
-  padding: 0.8rem 0.9rem;
-}
-
-.field textarea {
-  min-height: 8rem;
-  resize: vertical;
-}
-
-.field [aria-invalid="true"] {
-  border-color: var(--color-danger);
-}
-
-.error-text {
-  margin: 0;
-  color: var(--color-danger);
-  font-size: var(--font-size-small);
+.empty-state {
+  padding: var(--space-4);
 }
 
 .alert {
@@ -182,15 +157,78 @@ textarea:focus-visible {
   padding: var(--space-4);
   color: var(--color-danger);
   background: var(--color-danger-surface);
-  border: 1px solid color-mix(in srgb, var(--color-danger), transparent 65%);
-  border-radius: var(--radius-card);
+  border-color: color-mix(in srgb, var(--color-danger), transparent 65%);
 }
 
 .alert p {
   margin: 0;
 }
 
-.button-row {
+.view-switcher {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.view-switcher-button,
+.button,
+.icon-button,
+.day-card-button,
+.month-day-button {
+  cursor: pointer;
+}
+
+.view-switcher-button {
+  min-height: 40px;
+  padding: 0.5rem 0.65rem;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius-control) - 2px);
+  font-weight: 650;
+}
+
+.view-switcher-button[aria-pressed="true"] {
+  color: var(--color-text);
+  background: var(--color-surface);
+  border-color: var(--color-border);
+}
+
+.date-navigator {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 44px auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.date-label {
+  min-width: 0;
+  margin: 0;
+  color: var(--color-text);
+  font-weight: 650;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  font-size: 1.2rem;
+}
+
+.button-row,
+.task-actions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -205,9 +243,13 @@ textarea:focus-visible {
   padding: 0.7rem 1rem;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  cursor: pointer;
   font-weight: 650;
   text-decoration: none;
+}
+
+.button-small {
+  min-height: 44px;
+  padding: 0.55rem 0.75rem;
 }
 
 .button-primary {
@@ -225,12 +267,14 @@ textarea:focus-visible {
   border-color: var(--color-border);
 }
 
-.button-secondary:hover {
+.button-secondary:hover,
+.icon-button:hover,
+.day-card-button:hover,
+.month-day-button:hover {
   background: var(--color-surface-muted);
 }
 
 .button-quiet {
-  padding-inline: 0;
   color: var(--color-accent);
   background: transparent;
   border-color: transparent;
@@ -240,58 +284,280 @@ textarea:focus-visible {
   color: var(--color-accent-hover);
 }
 
+.field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.field label {
+  font-weight: 650;
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  color: var(--color-text);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+
+.field textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.field [aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.error-text {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-small);
+}
+
+.form-card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--color-surface);
+}
+
+.task-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.task-card {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  overflow-wrap: anywhere;
+  background: var(--color-surface);
+}
+
+.task-card-main {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.task-actions {
+  justify-content: flex-start;
+}
+
+.task-card-planned {
+  border-color: color-mix(in srgb, var(--color-planned), transparent 62%);
+  background: var(--color-planned-surface);
+}
+
+.task-card-due-today {
+  border-color: color-mix(in srgb, var(--color-due), transparent 62%);
+  background: var(--color-due-surface);
+}
+
+.task-card-missed {
+  border-color: color-mix(in srgb, var(--color-missed), transparent 60%);
+  background: var(--color-missed-surface);
+}
+
+.task-card-completed {
+  border-color: color-mix(in srgb, var(--color-success), transparent 65%);
+  background: var(--color-success-surface);
+}
+
+.status-label {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-text);
+  font-size: var(--font-size-compact);
+  font-weight: 750;
+}
+
+.status-label::before {
+  content: "";
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.proof-form,
+.readonly-section {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-border);
+}
+
 .readonly-note {
   margin: 0;
   padding: var(--space-4);
   white-space: pre-wrap;
-  background: var(--color-success-surface);
+  overflow-wrap: anywhere;
+  background: rgb(255 255 255 / 0.72);
   border: 1px solid color-mix(in srgb, var(--color-success), transparent 70%);
   border-radius: var(--radius-card);
 }
 
-.history-layout {
+.weekly-grid {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
-.streak-card {
+.week-day-card {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+.week-day-card-missed,
+.month-day-missed {
+  border-color: color-mix(in srgb, var(--color-missed), transparent 58%);
+}
+
+.week-day-card-due-today,
+.month-day-due-today {
+  border-color: color-mix(in srgb, var(--color-due), transparent 58%);
+}
+
+.week-day-card-planned,
+.month-day-planned {
+  border-color: color-mix(in srgb, var(--color-planned), transparent 58%);
+}
+
+.week-day-card-completed,
+.month-day-completed {
+  border-color: color-mix(in srgb, var(--color-success), transparent 62%);
+}
+
+.day-card-button {
   display: grid;
   gap: var(--space-1);
+  width: 100%;
+  padding: 0;
+  color: inherit;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
 }
 
-.streak-count {
-  margin: 0;
-  font-size: 1.5rem;
+.day-card-button[aria-pressed="true"] .day-card-title,
+.month-day-button[aria-pressed="true"] .month-day-number {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
+}
+
+.day-card-title {
+  color: var(--color-text);
   font-weight: 750;
 }
 
-.history-list {
+.task-preview-list {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
   padding: 0;
   margin: 0;
   list-style: none;
 }
 
-.history-item {
+.task-preview-list li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--font-size-small);
+}
+
+.task-preview-list span:last-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+}
+
+.status-dot-planned {
+  background: var(--color-planned);
+}
+
+.status-dot-due-today {
+  background: var(--color-due);
+}
+
+.status-dot-missed {
+  background: var(--color-missed);
+}
+
+.status-dot-completed {
+  background: var(--color-success);
+}
+
+.month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.month-weekday {
+  padding: var(--space-1);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-compact);
+  font-weight: 750;
+  text-align: center;
+}
+
+.month-day-button {
   display: grid;
   gap: var(--space-1);
-  padding-block: var(--space-3);
-  border-top: 1px solid var(--color-border);
+  align-content: start;
+  min-height: 4.25rem;
+  padding: var(--space-2);
+  color: var(--color-text);
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
 }
 
-.history-item:first-child {
-  border-top: 0;
+.month-day-button[aria-current="date"] {
+  box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--color-focus), transparent 45%);
 }
 
-.history-title {
-  margin: 0;
+.month-day-muted {
+  opacity: 0.55;
+}
+
+.month-day-number {
+  font-weight: 750;
+}
+
+.month-day-count {
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.month-day-status {
+  color: var(--color-text);
+  font-size: 0.72rem;
   font-weight: 650;
-}
-
-.dialog-surface {
-  border-color: color-mix(in srgb, var(--color-accent), transparent 60%);
-  scroll-margin-top: var(--space-4);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .visually-hidden {
@@ -306,13 +572,50 @@ textarea:focus-visible {
   border: 0;
 }
 
-@media (min-width: 760px) {
+@media (min-width: 640px) {
   .app-shell {
     padding-top: var(--space-8);
   }
 
-  .history-layout {
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  .control-panel {
+    grid-template-columns: minmax(16rem, 0.7fr) minmax(0, 1.3fr);
+    align-items: center;
+  }
+
+  .view-header,
+  .task-card-main {
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: start;
+  }
+
+  .weekly-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 860px) {
+  .weekly-grid {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 430px) {
+  .date-navigator {
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+  }
+
+  .date-navigator .button-small {
+    grid-column: 1 / -1;
+  }
+
+  .month-day-button {
+    min-height: 3.75rem;
+    padding: 0.25rem;
+  }
+
+  .month-day-count,
+  .month-day-status {
+    font-size: 0.62rem;
+    white-space: nowrap;
   }
 }

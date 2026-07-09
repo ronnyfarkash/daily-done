@@ -1,26 +1,30 @@
-import { useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppShell } from './components/AppShell';
-import { ChangeTaskConfirmation } from './components/ChangeTaskConfirmation';
-import { CompletionSummary } from './components/CompletionSummary';
-import { HistoryList } from './components/HistoryList';
-import { TaskSetupForm } from './components/TaskSetupForm';
-import { TodayCard } from './components/TodayCard';
-import { formatDateForDisplay, getLocalDateKey } from './lib/date';
-import { getRecentCompletions } from './lib/history';
+import { DailyView } from './components/DailyView';
+import { DateNavigator } from './components/DateNavigator';
+import { MonthlyView } from './components/MonthlyView';
+import { StorageAlert } from './components/StorageAlert';
+import { TaskForm, type TaskFormValues } from './components/TaskForm';
+import { ViewSwitcher } from './components/ViewSwitcher';
+import { WeeklyView } from './components/WeeklyView';
+import { addDays, formatDateForDisplay, formatMonthForDisplay, getLocalDateKey, getMonthKey, parseLocalDateKey } from './lib/date';
+import { buildDayView, buildMonthView, buildWeekView } from './lib/grouping';
 import {
-  addCompletion,
-  changeTask,
-  findCompletionForDate,
+  addTask,
+  completeTaskInState,
+  createEmptyState,
   readAppState,
-  setTaskSettings,
+  updateTask,
   writeAppState,
 } from './lib/storage';
-import { calculateCurrentStreak } from './lib/streak';
-import type { AppState, StorageErrorInfo } from './lib/types';
-import { validateProofNote, validateTaskName } from './lib/validation';
+import type { AppStateV2, StorageErrorInfo, ViewMode } from './lib/types';
+import { validateScheduledDate } from './lib/validation';
 
-function loadInitialState(): { appState: AppState; storageError: StorageErrorInfo | null } {
-  const result = readAppState();
+function loadInitialState(todayLocalDate: string): {
+  appState: AppStateV2;
+  storageError: StorageErrorInfo | null;
+} {
+  const result = readAppState(undefined, todayLocalDate);
 
   if (result.ok) {
     return { appState: result.value, storageError: null };
@@ -29,221 +33,343 @@ function loadInitialState(): { appState: AppState; storageError: StorageErrorInf
   return { appState: result.value, storageError: result.error };
 }
 
+function getInitialSelectedDate(state: AppStateV2, todayLocalDate: string): string {
+  const savedDate = state.preferences?.lastSelectedDate;
+  const savedDateResult = savedDate ? validateScheduledDate(savedDate) : null;
+
+  return savedDateResult?.valid ? savedDateResult.value : todayLocalDate;
+}
+
+function shiftMonth(localDate: string, amount: number): string {
+  const parsed = parseLocalDateKey(localDate);
+  const day = parsed.getDate();
+
+  parsed.setDate(1);
+  parsed.setMonth(parsed.getMonth() + amount);
+
+  const targetYear = parsed.getFullYear();
+  const targetMonth = parsed.getMonth();
+  const lastDay = new Date(targetYear, targetMonth + 1, 0, 12, 0, 0, 0).getDate();
+  parsed.setDate(Math.min(day, lastDay));
+
+  return getLocalDateKey(parsed);
+}
+
+function withSelectedDatePreference(state: AppStateV2, selectedDate: string): AppStateV2 {
+  return {
+    ...state,
+    preferences: {
+      ...state.preferences,
+      lastSelectedDate: selectedDate,
+    },
+  };
+}
+
 export default function App() {
-  const [initialState] = useState(loadInitialState);
-  const [appState, setAppState] = useState<AppState>(initialState.appState);
+  const [todayLocalDate, setTodayLocalDate] = useState(() => getLocalDateKey());
+  const [initialState] = useState(() => loadInitialState(todayLocalDate));
+  const [appState, setAppState] = useState<AppStateV2>(initialState.appState);
   const [storageError, setStorageError] = useState<StorageErrorInfo | null>(
     initialState.storageError,
   );
-  const [setupOpen, setSetupOpen] = useState(false);
-  const [completedJustNow, setCompletedJustNow] = useState(false);
-  const [taskDraft, setTaskDraft] = useState(appState.settings?.taskName ?? '');
-  const [taskError, setTaskError] = useState<string | null>(null);
-  const [proofDraft, setProofDraft] = useState('');
-  const [proofError, setProofError] = useState<string | null>(null);
-  const [changeTaskOpen, setChangeTaskOpen] = useState(false);
-  const [changeTaskDraft, setChangeTaskDraft] = useState(appState.settings?.taskName ?? '');
-  const [changeTaskError, setChangeTaskError] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(() =>
+    getInitialSelectedDate(initialState.appState, todayLocalDate),
+  );
+  const [viewMode, setViewMode] = useState<ViewMode>('day');
+  const [taskFormOpen, setTaskFormOpen] = useState(false);
+  const [proofTaskId, setProofTaskId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [pendingFocusSelector, setPendingFocusSelector] = useState<string | null>(null);
 
-  const taskInputRef = useRef<HTMLInputElement>(null);
-  const proofInputRef = useRef<HTMLTextAreaElement>(null);
-  const changeTaskInputRef = useRef<HTMLInputElement>(null);
-  const changeTaskButtonRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    function refreshToday() {
+      setTodayLocalDate(getLocalDateKey());
+    }
 
-  const todayLocalDate = getLocalDateKey();
-  const todayLabel = formatDateForDisplay(todayLocalDate);
-  const todayCompletion = findCompletionForDate(appState, todayLocalDate);
-  const recentCompletions = getRecentCompletions(appState.completions);
-  const streak = calculateCurrentStreak(appState.completions, todayLocalDate);
+    window.addEventListener('focus', refreshToday);
+    document.addEventListener('visibilitychange', refreshToday);
 
-  function persist(nextState: AppState): boolean {
-    const result = writeAppState(nextState);
+    return () => {
+      window.removeEventListener('focus', refreshToday);
+      document.removeEventListener('visibilitychange', refreshToday);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!pendingFocusSelector) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(pendingFocusSelector)?.focus();
+      setPendingFocusSelector(null);
+    });
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [
+    appState,
+    editingTaskId,
+    pendingFocusSelector,
+    proofTaskId,
+    selectedDate,
+    taskFormOpen,
+    viewMode,
+  ]);
+
+  const dayView = useMemo(
+    () => buildDayView(appState.tasks, selectedDate, todayLocalDate),
+    [appState.tasks, selectedDate, todayLocalDate],
+  );
+  const weekView = useMemo(
+    () => buildWeekView(appState.tasks, selectedDate, todayLocalDate),
+    [appState.tasks, selectedDate, todayLocalDate],
+  );
+  const monthView = useMemo(
+    () => buildMonthView(appState.tasks, selectedDate, todayLocalDate),
+    [appState.tasks, selectedDate, todayLocalDate],
+  );
+
+  const navigatorLabel = useMemo(() => {
+    if (viewMode === 'month') {
+      return formatMonthForDisplay(getMonthKey(selectedDate));
+    }
+
+    if (viewMode === 'week') {
+      return `${formatDateForDisplay(weekView.startDate)} - ${formatDateForDisplay(weekView.endDate)}`;
+    }
+
+    return formatDateForDisplay(selectedDate);
+  }, [selectedDate, viewMode, weekView.endDate, weekView.startDate]);
+
+  function persist(nextState: AppStateV2, nextSelectedDate = selectedDate): boolean {
+    const stateWithPreferences = withSelectedDatePreference(nextState, nextSelectedDate);
+    const result = writeAppState(stateWithPreferences);
 
     if (!result.ok) {
       setStorageError(result.error);
       return false;
     }
 
-    setAppState(nextState);
+    setAppState(stateWithPreferences);
+    setSelectedDate(nextSelectedDate);
     setStorageError(null);
+    setActionError(null);
     return true;
   }
 
   function handleRetryStorage() {
-    const result = readAppState();
+    const freshToday = getLocalDateKey();
+    const result = readAppState(undefined, freshToday);
 
+    setTodayLocalDate(freshToday);
     if (!result.ok) {
+      setAppState(result.value);
       setStorageError(result.error);
       return;
     }
 
     setAppState(result.value);
-    setTaskDraft(result.value.settings?.taskName ?? '');
-    setChangeTaskDraft(result.value.settings?.taskName ?? '');
+    setSelectedDate(getInitialSelectedDate(result.value, freshToday));
     setStorageError(null);
   }
 
-  function openSetup() {
-    setTaskDraft(appState.settings?.taskName ?? '');
-    setTaskError(null);
-    setSetupOpen(true);
+  function closeTaskForm() {
+    setTaskFormOpen(false);
+    setEditingTaskId(null);
+    setPendingFocusSelector(focusSelectorForView(viewMode));
   }
 
-  function saveTask() {
-    const validation = validateTaskName(taskDraft);
+  function focusSelectorForView(mode: ViewMode): string {
+    if (mode === 'week') {
+      return '#weekly-view-title';
+    }
 
-    if (!validation.valid) {
-      setTaskError(validation.error);
-      taskInputRef.current?.focus();
+    if (mode === 'month') {
+      return '#monthly-view-title';
+    }
+
+    return '#daily-view-title';
+  }
+
+  function focusSelectorForTask(taskId: string): string {
+    return `[data-task-id="${taskId}"]`;
+  }
+
+  function openAddTask() {
+    setProofTaskId(null);
+    setEditingTaskId(null);
+    setActionError(null);
+    setTaskFormOpen(true);
+  }
+
+  function handleAddTask(values: TaskFormValues) {
+    const nextState = addTask(appState, values);
+    const nextSelectedDate = values.scheduledDate;
+    const existingIds = new Set(appState.tasks.map((task) => task.id));
+    const createdTask = nextState.tasks.find((task) => !existingIds.has(task.id));
+
+    if (persist(nextState, nextSelectedDate)) {
+      setViewMode('day');
+      setTaskFormOpen(false);
+      setPendingFocusSelector(
+        createdTask ? focusSelectorForTask(createdTask.id) : focusSelectorForView('day'),
+      );
+    }
+  }
+
+  function handleEditTask(taskId: string) {
+    setTaskFormOpen(false);
+    setProofTaskId(null);
+    setActionError(null);
+    setEditingTaskId(taskId);
+  }
+
+  function handleSaveEdit(taskId: string, values: TaskFormValues) {
+    try {
+      const nextState = updateTask(appState, taskId, values);
+      const nextSelectedDate = values.scheduledDate;
+
+      if (persist(nextState, nextSelectedDate)) {
+        setViewMode('day');
+        setEditingTaskId(null);
+        setPendingFocusSelector(focusSelectorForTask(taskId));
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Daily Done could not save this task.');
+    }
+  }
+
+  function handleVerify(taskId: string) {
+    setTaskFormOpen(false);
+    setEditingTaskId(null);
+    setActionError(null);
+    setProofTaskId(taskId);
+  }
+
+  function handleComplete(taskId: string, proofNote: string) {
+    const freshToday = getLocalDateKey();
+    setTodayLocalDate(freshToday);
+
+    try {
+      const nextState = completeTaskInState(appState, taskId, proofNote, freshToday);
+      if (persist(nextState)) {
+        setProofTaskId(null);
+        setPendingFocusSelector(focusSelectorForTask(taskId));
+      }
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : 'Daily Done could not mark this task complete.');
+    }
+  }
+
+  function changeSelectedDate(nextDate: string, nextViewMode = viewMode) {
+    const nextState = withSelectedDatePreference(appState, nextDate);
+    setSelectedDate(nextDate);
+    setViewMode(nextViewMode);
+    setTaskFormOpen(false);
+    setEditingTaskId(null);
+    setProofTaskId(null);
+    setActionError(null);
+    writeAppState(nextState);
+    setAppState(nextState);
+    setPendingFocusSelector(focusSelectorForView(nextViewMode));
+  }
+
+  function handlePreviousPeriod() {
+    if (viewMode === 'month') {
+      changeSelectedDate(shiftMonth(selectedDate, -1));
       return;
     }
 
-    const nextState = setTaskSettings(appState, validation.value);
-
-    if (persist(nextState)) {
-      setTaskDraft(validation.value);
-      setSetupOpen(false);
-      setTaskError(null);
-      setCompletedJustNow(false);
-      window.requestAnimationFrame(() => proofInputRef.current?.focus());
-    }
+    changeSelectedDate(addDays(selectedDate, viewMode === 'week' ? -7 : -1));
   }
 
-  function completeToday() {
-    const validation = validateProofNote(proofDraft);
-
-    if (!validation.valid) {
-      setProofError(validation.error);
-      proofInputRef.current?.focus();
+  function handleNextPeriod() {
+    if (viewMode === 'month') {
+      changeSelectedDate(shiftMonth(selectedDate, 1));
       return;
     }
 
-    const completionDate = getLocalDateKey();
-    const nextState = addCompletion(appState, completionDate, validation.value);
-
-    if (persist(nextState)) {
-      setProofDraft('');
-      setProofError(null);
-      setCompletedJustNow(true);
-    }
+    changeSelectedDate(addDays(selectedDate, viewMode === 'week' ? 7 : 1));
   }
 
-  function openChangeTask() {
-    setChangeTaskDraft(appState.settings?.taskName ?? '');
-    setChangeTaskError(null);
-    setChangeTaskOpen(true);
+  function handleToday() {
+    const freshToday = getLocalDateKey();
+    setTodayLocalDate(freshToday);
+    changeSelectedDate(freshToday);
   }
 
-  function cancelChangeTask() {
-    setChangeTaskOpen(false);
-    setChangeTaskError(null);
-    window.requestAnimationFrame(() => changeTaskButtonRef.current?.focus());
+  function handleSelectDay(date: string) {
+    changeSelectedDate(date, 'day');
   }
 
-  function confirmChangeTask() {
-    const validation = validateTaskName(changeTaskDraft);
-
-    if (!validation.valid) {
-      setChangeTaskError(validation.error);
-      changeTaskInputRef.current?.focus();
-      return;
-    }
-
-    const nextState = changeTask(appState, validation.value);
-
-    if (persist(nextState)) {
-      setChangeTaskDraft(validation.value);
-      setTaskDraft(validation.value);
-      setChangeTaskOpen(false);
-      setChangeTaskError(null);
-      window.requestAnimationFrame(() => changeTaskButtonRef.current?.focus());
-    }
+  function handleViewChange(nextViewMode: ViewMode) {
+    setViewMode(nextViewMode);
+    setTaskFormOpen(false);
+    setEditingTaskId(null);
+    setProofTaskId(null);
+    setActionError(null);
+    setPendingFocusSelector(focusSelectorForView(nextViewMode));
   }
-
-  const isFirstRun = !appState.settings;
-  const showSetupForm = setupOpen;
 
   return (
     <AppShell>
-      {storageError ? (
+      {storageError ? <StorageAlert error={storageError} onRetry={handleRetryStorage} /> : null}
+
+      {actionError ? (
         <section className="alert" role="alert" aria-live="assertive">
-          <p>{storageError.message}</p>
-          <div className="button-row">
-            <button className="button button-secondary" type="button" onClick={handleRetryStorage}>
-              Retry
-            </button>
-          </div>
+          <p>{actionError}</p>
         </section>
       ) : null}
 
-      {isFirstRun && !setupOpen ? (
-        <section className="card" aria-labelledby="empty-title">
-          <div className="stack">
-            <h2 id="empty-title" className="card-title">
-              No daily task yet.
-            </h2>
-            <p className="helper-text">Choose the one thing you want to verify each day.</p>
-            <p className="history-note">Your completions will appear here after you finish a day.</p>
-          </div>
-          <div className="button-row">
-            <button className="button button-primary" type="button" onClick={openSetup}>
-              Set daily task
-            </button>
-          </div>
-        </section>
-      ) : null}
+      <section className="control-panel" aria-label="Planning controls">
+        <ViewSwitcher value={viewMode} onChange={handleViewChange} />
+        <DateNavigator
+          mode={viewMode}
+          label={navigatorLabel}
+          onPrevious={handlePreviousPeriod}
+          onNext={handleNextPeriod}
+          onToday={handleToday}
+        />
+      </section>
 
-      {showSetupForm ? (
-        <TaskSetupForm
-          title={appState.settings ? 'Edit daily task' : 'Set your daily task'}
-          value={taskDraft}
-          submitLabel={appState.settings ? 'Save task' : 'Save task'}
-          error={taskError}
-          inputRef={taskInputRef}
-          autoFocus={setupOpen || isFirstRun}
-          onChange={setTaskDraft}
-          onSubmit={saveTask}
-          onCancel={appState.settings ? () => setSetupOpen(false) : undefined}
+      {taskFormOpen ? (
+        <TaskForm
+          title="Add task"
+          initialDate={selectedDate}
+          submitLabel="Save task"
+          onSubmit={handleAddTask}
+          onCancel={closeTaskForm}
         />
       ) : null}
 
-      {appState.settings && !setupOpen && todayCompletion ? (
-        <CompletionSummary
-          todayLabel={todayLabel}
-          completion={todayCompletion}
-          activeTaskName={appState.settings.taskName}
-          changeButtonRef={changeTaskButtonRef}
-          focusOnMount={completedJustNow}
-          onChangeTask={openChangeTask}
+      {viewMode === 'day' ? (
+        <DailyView
+          view={dayView}
+          proofTaskId={proofTaskId}
+          editingTaskId={editingTaskId}
+          onAddTask={openAddTask}
+          onVerify={handleVerify}
+          onComplete={handleComplete}
+          onCancelProof={(taskId) => {
+            setProofTaskId(null);
+            setPendingFocusSelector(focusSelectorForTask(taskId));
+          }}
+          onEdit={handleEditTask}
+          onSaveEdit={handleSaveEdit}
+          onCancelEdit={(taskId) => {
+            setEditingTaskId(null);
+            setPendingFocusSelector(focusSelectorForTask(taskId));
+          }}
         />
       ) : null}
 
-      {appState.settings && !setupOpen && !todayCompletion ? (
-        <TodayCard
-          todayLabel={todayLabel}
-          taskName={appState.settings.taskName}
-          proofNote={proofDraft}
-          proofError={proofError}
-          proofInputRef={proofInputRef}
-          onProofChange={setProofDraft}
-          onComplete={completeToday}
-          onEditTask={openSetup}
-        />
+      {viewMode === 'week' ? (
+        <WeeklyView view={weekView} onAddTask={openAddTask} onSelectDay={handleSelectDay} />
       ) : null}
 
-      {changeTaskOpen ? (
-        <ChangeTaskConfirmation
-          value={changeTaskDraft}
-          error={changeTaskError}
-          inputRef={changeTaskInputRef}
-          onChange={setChangeTaskDraft}
-          onConfirm={confirmChangeTask}
-          onCancel={cancelChangeTask}
-        />
-      ) : null}
-
-      {!isFirstRun || appState.completions.length > 0 ? (
-        <HistoryList completions={recentCompletions} streak={streak} />
+      {viewMode === 'month' ? (
+        <MonthlyView view={monthView} onAddTask={openAddTask} onSelectDay={handleSelectDay} />
       ) : null}
     </AppShell>
   );
